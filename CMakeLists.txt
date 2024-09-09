@@ -8,7 +8,10 @@ project(libaudiofile VERSION 0.3.6)
 # Variables
 #
 
-set (CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+#add_compile_options(-std=c++14)
+set (CMAKE_C_STANDARD 17)
 set (CMAKE_C_STANDARD_REQUIRED TRUE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -238,10 +241,22 @@ set(libaudiofile_src
 )
 
 
+#
+# libaudiofile
+#
+
+# Public libsndfile headers
+set (audiofile_HDRS
+    libaudiofile/audiofile.h
+    )
+
+
 add_library (libaudiofile_shared SHARED ${libaudiofile_src} )
 
 SET_TARGET_PROPERTIES (libaudiofile_shared  PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
+set_target_properties (libaudiofile_shared PROPERTIES
+                       PUBLIC_HEADER "${audiofile_HDRS}" )
 
 target_include_directories (libaudiofile_shared
         PUBLIC
@@ -375,6 +390,75 @@ if (BUILD_COMMANDS)
                 libaudiofile_shared
                 $<$<BOOL:${LIBM_REQUIRED}>:m>
             )
+
+endif ()
+
+#
+# Installation
+#
+
+if (ENABLE_PACKAGE_CONFIG)
+
+        if (WIN32 AND (NOT MINGW) AND (NOT CYGWIN))
+                set (CMAKE_INSTALL_PACKAGEDIR cmake) 
+         else ()
+                set (CMAKE_INSTALL_PACKAGEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/AudioFile)
+         endif()
+
+         install (TARGETS ${AUDIOFILE_PROGRAM_TARGETS}
+                RUNTIME DESTINATION                     ${CMAKE_INSTALL_BINDIR}
+        )
+
+        install (TARGETS libaudiofile_shared
+                EXPORT AudioFileTargets
+                RUNTIME DESTINATION             ${CMAKE_INSTALL_BINDIR}
+                ARCHIVE DESTINATION             ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY DESTINATION             ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION       ${CMAKE_INSTALL_INCLUDEDIR}
+        )
+
+        export (EXPORT AudioFileTargets NAMESPACE SndFile:: FILE ${PROJECT_BINARY_DIR}/AudioFileTargets.cmake)
+
+        include (CMakePackageConfigHelpers)
+
+        set (INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR})
+        configure_package_config_file(libaudiofile/config.h.cmake AudioFileConfig.cmake
+                INSTALL_DESTINATION ${PROJECT_BINARY_DIR}
+                INSTALL_PREFIX ${PROJECT_BINARY_DIR}
+                PATH_VARS INCLUDE_INSTALL_DIR
+                )
+        configure_package_config_file(libaudiofile/config.h.cmake AudioFileConfig2.cmake
+                INSTALL_DESTINATION ${CMAKE_INSTALL_PACKAGEDIR}
+                PATH_VARS INCLUDE_INSTALL_DIR
+                )
+        write_basic_package_version_file (AudioFileConfigVersion.cmake COMPATIBILITY SameMajorVersion)
+
+        install(EXPORT AudioFileTargets
+                NAMESPACE AudioFile::
+                DESTINATION ${CMAKE_INSTALL_PACKAGEDIR}
+                )
+        install(
+                FILES ${CMAKE_CURRENT_BINARY_DIR}/AudioFileConfig2.cmake
+                RENAME AudioFileConfig.cmake
+                DESTINATION     ${CMAKE_INSTALL_PACKAGEDIR}
+                )
+        install(
+                FILES
+                        ${CMAKE_CURRENT_BINARY_DIR}/AudioFileConfigVersion.cmake
+                DESTINATION     ${CMAKE_INSTALL_PACKAGEDIR}
+                )
+
+                if (NOT BUILD_SHARED_LIBS AND FIND_MODULES_INSTALL_LIST)
+                        file(COPY ${FIND_MODULES_INSTALL_LIST} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+                        install(FILES ${FIND_MODULES_INSTALL_LIST} DESTINATION ${CMAKE_INSTALL_PACKAGEDIR})
+                endif ()
+else ()
+
+        install (TARGETS audiofile ${audiofile_PROGRAMS}
+                RUNTIME DESTINATION                     ${CMAKE_INSTALL_BINDIR}
+                ARCHIVE DESTINATION                     ${CMAKE_INSTALL_LIBDIR}
+                LIBRARY DESTINATION                     ${CMAKE_INSTALL_LIBDIR}
+                PUBLIC_HEADER DESTINATION       ${CMAKE_INSTALL_INCLUDEDIR})
 
 endif ()
 
