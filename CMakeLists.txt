@@ -61,6 +61,14 @@ if (CMAKE_VERSION VERSION_LESS 3.14)
         list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sqlite")
 endif ()
 
+option (INSTALL_PKGCONFIG_MODULE "Generate and install pkg-config module" ON)
+
+
+
+add_feature_info (BUILD_SHARED_LIBS BUILD_SHARED_LIBS "build shared libraries")
+add_feature_info (ENABLE_PACKAGE_CONFIG ENABLE_PACKAGE_CONFIG "generate and install package config file")
+add_feature_info (INSTALL_PKGCONFIG_MODULE INSTALL_PKGCONFIG_MODULE "generate and install pkg-config module")
+
 
 #
 # Setup configuration
@@ -75,26 +83,15 @@ if (INSTALL_PKGCONFIG_MODULE)
         set (libdir "${CMAKE_INSTALL_FULL_LIBDIR}")
         set (includedir "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
         set (VERSION ${PROJECT_VERSION})
-        if (ENABLE_EXTERNAL_LIBS)
-                set (EXTERNAL_XIPH_REQUIRE "flac ogg vorbis vorbisenc opus")
-                if (ENABLE_EXPERIMENTAL)
-                        set (EXTERNAL_XIPH_REQUIRE "${EXTERNAL_XIPH_REQUIRE} speex")
-                endif ()
-        endif ()
-        if (ENABLE_MPEG)
-                set (EXTERNAL_MPEG_REQUIRE "libmpg123")
-                set (EXTERNAL_MPEG_LIBS "-lmp3lame")
-        endif ()
 
-#        configure_file (sndfile.pc.in sndfile.pc @ONLY)
+        configure_file (audiofile.pc.in audiofile.pc @ONLY)
 
 endif ()
 
 #
-# libsndfile
+# libaudiofile
 #
 
-# Public libaudiofile headers
 set (audiofile_HDRS
      libaudiofile/audiofile.h
     )
@@ -248,23 +245,24 @@ set(libaudiofile_src
 # Public libsndfile headers
 set (audiofile_HDRS
     libaudiofile/audiofile.h
+    libaudiofile/aupvlist.h
     )
 
 
-add_library (libaudiofile_shared SHARED ${libaudiofile_src} )
+add_library (audiofile SHARED ${libaudiofile_src} )
 
-SET_TARGET_PROPERTIES (libaudiofile_shared  PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+SET_TARGET_PROPERTIES (audiofile  PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-set_target_properties (libaudiofile_shared PROPERTIES
+set_target_properties (audiofile PROPERTIES
                        PUBLIC_HEADER "${audiofile_HDRS}" )
 
-target_include_directories (libaudiofile_shared
+target_include_directories (audiofile
         PUBLIC
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                 $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         PRIVATE
-                libaudiofile_shared
+                audiofile
                 $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libaudiofile>
         )
         
@@ -277,6 +275,11 @@ target_include_directories (libaudiofile_shared
 #    RUNTIME DESTINATION bin
 #)
 
+
+
+if (INSTALL_PKGCONFIG_MODULE)
+        install (FILES ${CMAKE_CURRENT_BINARY_DIR}/audiofile.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+endif ()
 
 
 
@@ -344,7 +347,7 @@ if (BUILD_TESTING_)
                         ${CMAKE_CURRENT_BINARY_DIR}/libaudiofile
                         ${CMAKE_CURRENT_BINARY_DIR}/test
                 )
-        target_link_libraries (test_main PRIVATE libaudiofile_shared)
+        target_link_libraries (test_main PRIVATE audiofile)
         if (MSVC)
                 target_compile_definitions (test_main PRIVATE _USE_MATH_DEFINES)
         endif ()
@@ -372,7 +375,7 @@ if (BUILD_COMMANDS)
 
     target_link_libraries (sfinfo
                 PRIVATE
-                libaudiofile_shared
+                audiofile
                 $<$<BOOL:${LIBM_REQUIRED}>:m>
                 )
                 
@@ -387,7 +390,7 @@ if (BUILD_COMMANDS)
         
         target_link_libraries (sfconvert
                 PRIVATE
-                libaudiofile_shared
+                audiofile
                 $<$<BOOL:${LIBM_REQUIRED}>:m>
             )
 
@@ -409,7 +412,7 @@ if (ENABLE_PACKAGE_CONFIG)
                 RUNTIME DESTINATION                     ${CMAKE_INSTALL_BINDIR}
         )
 
-        install (TARGETS libaudiofile_shared
+        install (TARGETS audiofile
                 EXPORT AudioFileTargets
                 RUNTIME DESTINATION             ${CMAKE_INSTALL_BINDIR}
                 ARCHIVE DESTINATION             ${CMAKE_INSTALL_LIBDIR}
@@ -417,7 +420,7 @@ if (ENABLE_PACKAGE_CONFIG)
                 PUBLIC_HEADER DESTINATION       ${CMAKE_INSTALL_INCLUDEDIR}
         )
 
-        export (EXPORT AudioFileTargets NAMESPACE SndFile:: FILE ${PROJECT_BINARY_DIR}/AudioFileTargets.cmake)
+        export (EXPORT AudioFileTargets NAMESPACE AudioFile:: FILE ${PROJECT_BINARY_DIR}/AudioFileTargets.cmake)
 
         include (CMakePackageConfigHelpers)
 
